@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gorilla/mux"
 )
 
 type Movie struct {
@@ -25,6 +28,7 @@ type Director struct {
 var movies []Movie
 
 func getMovies(w http.ResponseWriter, r *http.Request) {
+	log.Println("getMovies()")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(movies)
 }
@@ -58,7 +62,7 @@ func updateMovie(w http.ResponseWriter, r *http.Request) {
 		if item.ID == params["id"] {
 			movies = append(movies[:index], movies[index+1:]...)
 			var movie Movie
-			_ = json.NewDecoder(r.Body)
+			_ = json.NewDecoder(r.Body).Decode(&movie)
 			movie.ID = params["id"]
 			movies = append(movies, movie)
 			json.NewEncoder(w).Encode(movie)
@@ -79,7 +83,9 @@ func deleteMovie(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	r := mux.NewRouter()
+	r := chi.NewRouter()
+
+	r.Use(middleware.Logger)
 
 	movies = append(movies, Movie{ID: "1", Isbn: "438227", Title: "Movie One",
 		Director: &Director{Firstname: "John", Lastname: "Doe"}})
@@ -87,12 +93,13 @@ func main() {
 	movies = append(movies, Movie{ID: "2 ", Isbn: "438227", Title: "Movie Two",
 		Director: &Director{Firstname: "Steve", Lastname: "Smith"}})
 
-	r.HandleFunc("/movies", getMovies).Methods("GET")
-	r.HandleFunc("/movies/{id}", getMovie).Methods("GET")
-	r.HandleFunc("/movies", createMovie).Methods("POST")
-	r.HandleFunc("/movies/{id}", updateMovie).Methods("PUT")
-	r.HandleFunc("/movies/{id}", deleteMovie).Methods("DELETE")
+	r.Get("/movies", getMovies)
+	r.Get("/movies/{id}", getMovie)
+	r.Post("/movies", createMovie)
+	r.Put("/movies/{id}", updateMovie)
+	r.Delete("/movies/{id}", deleteMovie)
 
 	fmt.Printf("Starting server at port 8000\n")
-	log.Fatal(http.ListenAndServe(":8000", r))
+
+	log.Fatal(http.ListenAndServe(":3000", r))
 }
